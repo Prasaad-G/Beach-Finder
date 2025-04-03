@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ArcGIS Map Display</title>
+    <link rel="stylesheet" href="https://js.arcgis.com/4.27/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.27/"></script>
+    <style>
+        html, body {
+            padding: 0;
+            margin: 0;
+            height: 100%;
+            width: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #viewDiv {
+            height: 80%;
+            width: 100%;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.2);
+        }
+
+        #descriptionDiv {
+            height: 20%;
+            width: 100%;
+            padding: 20px;
+            box-sizing: border-box;
+            background: linear-gradient(135deg, #ffafbd, #ffc3a0);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 0 0 15px 15px;
+            box-shadow: 0 -5px 15px rgba(0, 0, 0, 0.1);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        #descriptionDiv::before {
+            content: '';
+            position: absolute;
+            top: -50px;
+            left: -50px;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: rotate(45deg);
+            z-index: 0;
+        }
+
+        #descriptionDiv::after {
+            content: '';
+            position: absolute;
+            bottom: -50px;
+            right: -50px;
+            width: 200px;
+            height: 200px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            transform: rotate(45deg);
+            z-index: 0;
+        }
+
+        .description {
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #fff;
+            z-index: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="viewDiv"></div>
+    <div id="descriptionDiv">
+        <div id="placeDescription" class="description">
+            Search for a place to see its description here.
+        </div>
+    </div>
+
+    <script>
+        function getArcGISToken() {
+            const tokenUrl = 'https://www.arcgis.com/sharing/rest/generateToken';
+            const params = new URLSearchParams();
+            params.append('username', 'harishRagav19'); // Replace with your username
+            params.append('password', 'Saymyname@19'); // Replace with your password
+            params.append('referer', 'https://sampleserver6.arcgisonline.com/arcgis/rest/services/USA/MapServer'); // Replace with your referrer (e.g., localhost)
+            params.append('f', 'json');
+
+            return fetch(tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: params,
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.token) {
+                    return data.token;
+                } else {
+                    throw new Error('Failed to obtain token');
+                }
+            })
+            .catch(error => {
+                console.error('Error fetching token:', error);
+                throw error;
+            });
+        }
+
+        function loadMap(token) {
+            require([
+                "esri/Map",
+                "esri/views/MapView",
+                "esri/layers/FeatureLayer",
+                "esri/widgets/Search"
+            ], function(Map, MapView, FeatureLayer, Search) {
+
+                const map = new Map({
+                    basemap: "streets-navigation-vector"
+                });
+
+                const view = new MapView({
+                    container: "viewDiv",
+                    map: map,
+                    center: [78.9629, 20.5937], // Center on India
+                    zoom: 4
+                });
+
+                const featureLayer = new FeatureLayer({
+                    url: "https://services.arcgis.com/your-service-url/ArcGIS/rest/services/your-feature-service/FeatureServer?token=" + token
+                });
+
+                map.add(featureLayer);
+
+                const searchWidget = new Search({
+                    view: view
+                });
+
+                searchWidget.on("select-result", function(event) {
+                    const location = event.result.feature.geometry;
+                    view.goTo({
+                        target: location,
+                        zoom: 10
+                    });
+
+                    const placeName = event.result.name;
+                    const placeDescription = getPlaceDescription(placeName);
+
+                    document.getElementById("placeDescription").textContent = placeDescription;
+                });
+
+                view.ui.add(searchWidget, {
+                    position: "top-left",
+                    index: 0
+                });
+            });
+        }
+
+        function getPlaceDescription(placeName) {
+            const descriptions = {
+                "Marina Beach": "Marina Beach, or simply the Marina, is a natural urban beach in Chennai, Tamil Nadu, India, along the Bay of Bengal.",
+                // Add more descriptions here
+            };
+
+            return descriptions[placeName] || `No description available for ${placeName}.`;
+        }
+
+        getArcGISToken().then(token => {
+            loadMap(token);
+        }).catch(error => {
+            console.error('Error loading map:', error);
+        });
+    </script>
+</body>
+
+</html>
